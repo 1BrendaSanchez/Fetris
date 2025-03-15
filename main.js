@@ -1,6 +1,44 @@
 const COLS = 10;
 const ROWS = 20;
 const BLOCK_SIZE = 30;
+const COLORS = ["cyan", "blue", "orange", "yellow", "green", "purple", "red"];
+const SHAPES = [
+  [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+  ],
+  [
+    [2, 0, 0],
+    [2, 2, 2],
+    [0, 0, 0],
+  ],
+  [
+    [0, 0, 3],
+    [3, 3, 3],
+    [0, 0, 0],
+  ],
+  [
+    [4, 4],
+    [4, 4],
+  ],
+  [
+    [0, 5, 5],
+    [5, 5, 0],
+    [0, 0, 0],
+  ],
+  [
+    [0, 6, 0],
+    [6, 6, 6],
+    [0, 0, 0],
+  ],
+  [
+    [7, 7, 0],
+    [0, 7, 7],
+    [0, 0, 0],
+  ],
+];
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
@@ -81,12 +119,9 @@ class Piece {
   constructor(ctx) {
     this.ctx = ctx;
 
-    this.color = "blue";
-    this.shape = [
-      [2, 0, 0],
-      [2, 2, 2],
-      [0, 0, 0],
-    ];
+    const typeId = this.randomizeTetrominoType(COLORS.length);
+    this.shape = SHAPES[typeId];
+    this.color = COLORS[typeId];
 
     // Starting position.
     this.x = 3;
@@ -109,9 +144,13 @@ class Piece {
     this.y = p.y;
     this.shape = p.shape;
   }
+
+  randomizeTetrominoType(noOfTypes) {
+    return Math.floor(Math.random() * noOfTypes);
+  }
 }
 
-let board = new Board();
+let board = new Board(ctx);
 
 function handleKeyPress(event) {
   // Stop the event from bubbling.
@@ -160,7 +199,7 @@ function draw() {
   board.piece.draw();
 }
 
-let time = { start: 0, elapsed: 0, level: 1000 };
+time = { start: 0, elapsed: 0, level: 1000 };
 
 function drop() {
   let p = moves[KEY.DOWN](board.piece);
