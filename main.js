@@ -49,15 +49,49 @@ const POINTS = {
 };
 Object.freeze(POINTS);
 
+const LINES_PER_LEVEL = 10;
+const LEVEL = {
+  0: 800,
+  1: 720,
+  2: 630,
+  3: 550,
+  4: 470,
+  5: 380,
+  6: 300,
+  7: 220,
+  8: 130,
+  9: 100,
+  10: 80,
+  11: 80,
+  12: 80,
+  13: 70,
+  14: 70,
+  15: 70,
+  16: 50,
+  17: 50,
+  18: 50,
+  19: 30,
+  20: 30,
+  // 29+ is 20ms
+};
+Object.freeze(LEVEL);
+
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
+const canvasNext = document.getElementById("next");
+const ctxNext = canvasNext.getContext("2d");
 
 // Calculate size of canvas from constants.
 ctx.canvas.width = COLS * BLOCK_SIZE;
 ctx.canvas.height = ROWS * BLOCK_SIZE;
 
+// Size canvas for four blocks.
+ctxNext.canvas.width = 4 * BLOCK_SIZE;
+ctxNext.canvas.height = 4 * BLOCK_SIZE;
+
 // Scale blocks
 ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+ctxNext.scale(BLOCK_SIZE, BLOCK_SIZE);
 
 const KEY = {
   SPACE: 32,
@@ -71,6 +105,7 @@ Object.freeze(KEY);
 let accountValues = {
   score: 0,
   lines: 0,
+  level: 0,
 };
 
 function updateAccount(key, value) {
@@ -97,12 +132,15 @@ const moves = {
 };
 
 let requestId = null;
+let board = null;
 
 class Board {
-  constructor(ctx) {
+  constructor(ctx, ctxNext) {
     this.ctx = ctx;
+    this.ctxNext = ctxNext;
     this.grid = this.getEmptyBoard();
-    this.piece = new Piece(ctx);
+    this.setNextPiece();
+    this.setCurrentPiece();
   }
 
   // Get matrix filled with zeros.
@@ -163,9 +201,23 @@ class Board {
         // Game over
         return false;
       }
-      this.piece = new Piece(this.ctx);
+      this.setCurrentPiece();
     }
     return true;
+  }
+
+  setNextPiece() {
+    const { width, height } = this.ctxNext.canvas;
+    this.nextPiece = new Piece(this.ctxNext);
+    this.ctxNext.clearRect(0, 0, width, height);
+    this.nextPiece.draw();
+  }
+
+  setCurrentPiece() {
+    this.piece = this.nextPiece;
+    this.piece.ctx = this.ctx;
+    this.piece.x = 3;
+    this.setNextPiece();
   }
 
   freeze() {
@@ -204,21 +256,37 @@ class Board {
         if (lines > 0) {
           // Add points if we cleared some lines
           account.score += this.getLineClearPoints(lines);
+          account.lines += lines;
+
+          // If we have reached the lines for next level
+          if (account.lines >= LINES_PER_LEVEL) {
+            // Goto next level
+            account.level++;
+
+            // Remove lines so we start working for the next level
+            account.lines -= LINES_PER_LEVEL;
+
+            // Increase speed of game
+            time.level = LEVEL[account.level];
+          }
         }
       }
     });
   }
 
   getLineClearPoints(lines) {
-    return lines === 1
-      ? POINTS.SINGLE
-      : lines === 2
-      ? POINTS.DOUBLE
-      : lines === 3
-      ? POINTS.TRIPLE
-      : lines === 4
-      ? POINTS.TETRIS
-      : 0;
+    const lineClearPoints =
+      lines === 1
+        ? POINTS.SINGLE
+        : lines === 2
+        ? POINTS.DOUBLE
+        : lines === 3
+        ? POINTS.TRIPLE
+        : lines === 4
+        ? POINTS.TETRIS
+        : 0;
+
+    return (account.level + 1) * lineClearPoints;
   }
 }
 
@@ -230,8 +298,7 @@ class Piece {
     this.shape = SHAPES[typeId];
     this.color = COLORS[typeId];
 
-    // Starting position.
-    this.x = 3;
+    this.x = 0;
     this.y = 0;
   }
 
@@ -256,8 +323,6 @@ class Piece {
     return Math.floor(Math.random() * noOfTypes);
   }
 }
-
-let board = new Board(ctx);
 
 function handleKeyPress(event) {
   // Stop the event from bubbling.
@@ -298,8 +363,16 @@ function draw() {
   board.piece.draw();
 }
 
+function resetGame() {
+  account.score = 0;
+  account.lines = 0;
+  account.level = 0;
+  board = new Board(ctx, ctxNext);
+  time = { start: performance.now(), elapsed: 0, level: LEVEL[0] };
+}
+
 function play() {
-  board = new Board(ctx);
+  resetGame();
   addEventListener();
 
   // If we have an old game running then cancel it
