@@ -13,6 +13,7 @@ ctx.canvas.height = ROWS * BLOCK_SIZE;
 ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
 
 const KEY = {
+  SPACE: 32,
   LEFT: 37,
   UP: 38,
   RIGHT: 39,
@@ -20,11 +21,12 @@ const KEY = {
 };
 Object.freeze(KEY);
 
-const moves = {
+moves = {
   [KEY.LEFT]: (p) => ({ ...p, x: p.x - 1 }),
   [KEY.RIGHT]: (p) => ({ ...p, x: p.x + 1 }),
   [KEY.DOWN]: (p) => ({ ...p, y: p.y + 1 }),
   [KEY.UP]: (p) => board.rotate(p),
+  [KEY.SPACE]: (p) => ({ ...p, y: p.y + 1 }),
 };
 
 class Board {
@@ -54,6 +56,22 @@ class Board {
     p.shape.forEach((row) => row.reverse());
 
     return p;
+  }
+
+  valid(p) {
+    return p.shape.every((row, y) => {
+      return row.every(
+        (value, x) => value === 0 || this.isInsideWalls(p.x + x, p.y + y)
+      );
+    });
+  }
+
+  isInsideWalls(x, y) {
+    return (
+      x >= 0 && // Left wall
+      x < COLS && // Right wall
+      y < ROWS // Bottom wall
+    );
   }
 }
 
@@ -101,9 +119,18 @@ function handleKeyPress(event) {
     // Get new state of piece
     let p = moves[event.keyCode](board.piece);
 
-    board.piece.move(p);
+    if (event.keyCode === KEY.SPACE) {
+      // Hard drop
+      while (board.valid(p)) {
+        board.piece.move(p);
+        p = moves[KEY.SPACE](board.piece);
+      }
+    }
 
-    draw();
+    if (board.valid(p)) {
+      board.piece.move(p);
+      draw();
+    }
   }
 }
 
