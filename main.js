@@ -5,14 +5,27 @@ const BLOCK_SIZE = 30;
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
-let board = null;
-
 // Calculate size of canvas from constants.
 ctx.canvas.width = COLS * BLOCK_SIZE;
 ctx.canvas.height = ROWS * BLOCK_SIZE;
 
 // Scale blocks
 ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+
+const KEY = {
+  LEFT: 37,
+  UP: 38,
+  RIGHT: 39,
+  DOWN: 40,
+};
+Object.freeze(KEY);
+
+// calculates the new position
+moves = {
+  [KEY.LEFT]: (p) => ({ ...p, x: p.x - 1 }),
+  [KEY.RIGHT]: (p) => ({ ...p, x: p.x + 1 }),
+  [KEY.DOWN]: (p) => ({ ...p, y: p.y + 1 }),
+};
 
 class Board {
   constructor(ctx) {
@@ -53,11 +66,39 @@ class Piece {
       });
     });
   }
+
+  move(p) {
+    this.x = p.x;
+    this.y = p.y;
+  }
+}
+
+let board = new Board();
+
+function handleKeyPress(event) {
+  // Stop the event from bubbling.
+  event.preventDefault();
+
+  if (moves[event.keyCode]) {
+    // Get new state of piece
+    let p = moves[event.keyCode](board.piece);
+
+    board.piece.move(p);
+
+    draw();
+  }
+}
+
+// event listener
+function addEventListener() {
+  document.removeEventListener("keydown", handleKeyPress);
+  document.addEventListener("keydown", handleKeyPress);
 }
 
 function play() {
   board = new Board(ctx);
   draw();
+  addEventListener();
 }
 
 function draw() {
