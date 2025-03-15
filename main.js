@@ -99,11 +99,19 @@ class Board {
   }
 
   valid(p) {
-    return p.shape.every((row, y) => {
-      return row.every(
-        (value, x) => value === 0 || this.isInsideWalls(p.x + x, p.y + y)
-      );
+    return p.shape.every((row, dy) => {
+      return row.every((value, dx) => {
+        let x = p.x + dx;
+        let y = p.y + dy;
+        return (
+          value === 0 || (this.isInsideWalls(x, y) && this.isNotOccupied(x, y))
+        );
+      });
     });
+  }
+
+  isNotOccupied(x, y) {
+    return this.grid[y] && this.grid[y][x] === 0;
   }
 
   isInsideWalls(x, y) {
@@ -112,6 +120,57 @@ class Board {
       x < COLS && // Right wall
       y < ROWS // Bottom wall
     );
+  }
+
+  drop() {
+    let p = moves[KEY.DOWN](this.piece);
+
+    if (this.valid(p)) {
+      this.piece.move(p);
+    } else {
+      this.freeze();
+      this.clearLines();
+      if (this.piece.y === 0) {
+        // Game over
+        return false;
+      }
+      this.piece = new Piece(this.ctx);
+    }
+    return true;
+  }
+
+  freeze() {
+    this.piece.shape.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value > 0) {
+          this.grid[y + this.piece.y][x + this.piece.x] = value;
+        }
+      });
+    });
+  }
+
+  draw() {
+    this.grid.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value > 0) {
+          this.ctx.fillStyle = COLORS[value - 1];
+          this.ctx.fillRect(x, y, 1, 1);
+        }
+      });
+    });
+  }
+
+  clearLines() {
+    this.grid.forEach((row, y) => {
+      // If every value is greater than zero then we have a full row.
+      if (row.every((value) => value > 0)) {
+        // Remove the row.
+        this.grid.splice(y, 1);
+
+        // Add zero filled row at the top.
+        this.grid.unshift(Array(COLS).fill(0));
+      }
+    });
   }
 }
 
@@ -179,6 +238,14 @@ function addEventListener() {
   document.addEventListener("keydown", handleKeyPress);
 }
 
+function draw() {
+  const { width, height } = ctx.canvas;
+  ctx.clearRect(0, 0, width, height);
+
+  board.draw();
+  board.piece.draw();
+}
+
 function play() {
   board = new Board(ctx);
   addEventListener();
@@ -187,26 +254,11 @@ function play() {
   if (requestId) {
     cancelAnimationFrame(requestId);
   }
-
   time.start = performance.now();
   animate();
 }
 
-function draw() {
-  const { width, height } = ctx.canvas;
-  ctx.clearRect(0, 0, width, height);
-
-  board.piece.draw();
-}
-
 time = { start: 0, elapsed: 0, level: 1000 };
-
-function drop() {
-  let p = moves[KEY.DOWN](board.piece);
-  if (board.valid(p)) {
-    board.piece.move(p);
-  }
-}
 
 function animate(now = 0) {
   // Update elapsed time.
@@ -217,9 +269,21 @@ function animate(now = 0) {
     // Restart counting from now
     time.start = now;
 
-    drop();
+    if (!board.drop()) {
+      gameOver();
+      return;
+    }
   }
 
   draw();
   requestId = requestAnimationFrame(animate);
+}
+
+function gameOver() {
+  cancelAnimationFrame(requestId);
+  ctx.fillStyle = "black";
+  ctx.fillRect(1, 3, 8, 1.2);
+  ctx.font = "1px Arial";
+  ctx.fillStyle = "red";
+  ctx.fillText("GAME OVER", 1.8, 4);
 }
