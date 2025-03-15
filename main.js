@@ -1,6 +1,8 @@
 const COLS = 10;
 const ROWS = 20;
 const BLOCK_SIZE = 30;
+const NO_OF_HIGH_SCORES = 10;
+const HIGH_SCORES = "highScores";
 const COLORS = ["cyan", "blue", "orange", "yellow", "green", "purple", "red"];
 const SHAPES = [
   [
@@ -324,6 +326,8 @@ class Piece {
   }
 }
 
+showHighScores();
+
 function handleKeyPress(event) {
   // Stop the event from bubbling.
   event.preventDefault();
@@ -411,4 +415,39 @@ function gameOver() {
   ctx.font = "1px Arial";
   ctx.fillStyle = "red";
   ctx.fillText("GAME OVER", 1.8, 4);
+
+  checkHighScore(account.score);
+}
+
+function checkHighScore(score) {
+  const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES)) || [];
+
+  const lowestScore = highScores[NO_OF_HIGH_SCORES - 1]?.score ?? 0;
+
+  if (score > lowestScore) {
+    saveHighScore(score, highScores);
+    showHighScores();
+  }
+}
+
+function saveHighScore(score, highScores) {
+  const name = prompt("You got a highscore! Enter name:");
+
+  const newScore = { score, name };
+
+  highScores.push(newScore);
+  highScores.sort((a, b) => b.score - a.score);
+  highScores.splice(NO_OF_HIGH_SCORES);
+
+  localStorage.setItem(HIGH_SCORES, JSON.stringify(highScores));
+}
+
+function showHighScores() {
+  const highScores = JSON.parse(localStorage.getItem(HIGH_SCORES)) || [];
+
+  const highScoreList = document.getElementById(HIGH_SCORES);
+
+  highScoreList.innerHTML = highScores
+    .map((score) => `<li>${score.score} - ${score.name}`)
+    .join("");
 }
