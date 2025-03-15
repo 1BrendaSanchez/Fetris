@@ -39,6 +39,15 @@ const SHAPES = [
     [0, 0, 0],
   ],
 ];
+const POINTS = {
+  SINGLE: 100,
+  DOUBLE: 300,
+  TRIPLE: 500,
+  TETRIS: 800,
+  SOFT_DROP: 1,
+  HARD_DROP: 2,
+};
+Object.freeze(POINTS);
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
@@ -59,7 +68,27 @@ const KEY = {
 };
 Object.freeze(KEY);
 
-moves = {
+let accountValues = {
+  score: 0,
+  lines: 0,
+};
+
+function updateAccount(key, value) {
+  let element = document.getElementById(key);
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+let account = new Proxy(accountValues, {
+  set: (target, key, value) => {
+    target[key] = value;
+    updateAccount(key, value);
+    return true;
+  },
+});
+
+const moves = {
   [KEY.LEFT]: (p) => ({ ...p, x: p.x - 1 }),
   [KEY.RIGHT]: (p) => ({ ...p, x: p.x + 1 }),
   [KEY.DOWN]: (p) => ({ ...p, y: p.y + 1 }),
@@ -161,16 +190,35 @@ class Board {
   }
 
   clearLines() {
+    let lines = 0;
     this.grid.forEach((row, y) => {
       // If every value is greater than zero then we have a full row.
       if (row.every((value) => value > 0)) {
-        // Remove the row.
-        this.grid.splice(y, 1);
+        lines++; // Increase for cleared line
+
+        this.grid.splice(y, 1); // Remove the row.
 
         // Add zero filled row at the top.
         this.grid.unshift(Array(COLS).fill(0));
+
+        if (lines > 0) {
+          // Add points if we cleared some lines
+          account.score += this.getLineClearPoints(lines);
+        }
       }
     });
+  }
+
+  getLineClearPoints(lines) {
+    return lines === 1
+      ? POINTS.SINGLE
+      : lines === 2
+      ? POINTS.DOUBLE
+      : lines === 3
+      ? POINTS.TRIPLE
+      : lines === 4
+      ? POINTS.TETRIS
+      : 0;
   }
 }
 
@@ -223,12 +271,16 @@ function handleKeyPress(event) {
       // Hard drop
       while (board.valid(p)) {
         board.piece.move(p);
+        account.score += POINTS.HARD_DROP;
         p = moves[KEY.SPACE](board.piece);
       }
     }
 
     if (board.valid(p)) {
       board.piece.move(p);
+      if (event.keyCode === KEY.DOWN) {
+        account.score += POINTS.SOFT_DROP;
+      }
     }
   }
 }
